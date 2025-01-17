@@ -26,6 +26,8 @@ Indexed/Quantized/Paletted Color is a color mode for PNGs where each color refer
 
 > Tip: Many vanilla textures already use indexed color! You can try using those by downloading them directly from your game files, or https://github.com/misode/mcmeta/tree/assets. For example, the armor trims already have indexed color (very convenient!)
 
+> Bonus Tip: If you've compressed your PNGs using an external tool, there's a chance that you already have Indexed Color enabled - try using the code from section 4.2 with your image to see if it is.
+
 You'll need to make sure that you're using a PNG with Indexed Color for this library to work. In GIMP, you can convert an image to Indexed Color by going to `Image > Mode > Indexed...`. This will bring up a dialog asking how to convert the image's colors - if you have more than 256 colors (ouch...) this might change some colors in your image (!).
 Otherwise, the defaults work well.
 
