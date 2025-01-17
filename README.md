@@ -142,3 +142,6 @@ Congratulations! You're done. Use the texture wherever you want.
 
 ## 5. Known Issues
 * not sure what will happen if an image doesn't have transparency data. adding transparency data definitely won't work though
+
+## 6. Changelog
+See [CHANGELOG.md](./CHANGELOG.md).
