@@ -2,7 +2,7 @@
 
 > *Sounds cursed. I like it!* - Katt
 
-> ## This library is intended for people who are already familiar with scripting and how images work.
+> ## This library is intended for people who are already familiar with scripting.
 
 `colormagic` is a Lua package designed for doing exactly one thing:
 
