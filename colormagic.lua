@@ -112,12 +112,9 @@ function pnginfo_chunk_actions.tRNS(buffer, length)
     return mapping
 end
 
----@param is InputStream
-local function pnginfo(is)
+---@param raw string
+local function pnginfo(raw)
     local buf_max = checkperms()
-    local raw = readall(is, buf_max)
-    is:close()
-
     local cursor = validate(raw)
 
     local chunk_data = {}
@@ -199,15 +196,14 @@ end
 ---@field PLTE colormagic.locator
 ---@field tRNS colormagic.tRNS_locator
 ---@field raw string
+---@field hints {[string]: integer}?
 
 ---Prepare a PNG for editing. You only need to do this once per source texture.
 ---Try and keep the loc_pack around to avoid wasting instructions.
----@param is InputStream
+---@param raw string
 ---@return colormagic.file_pack
-local function preparse_png(is)
+local function preparse_png(raw)
     local buf_max = checkperms()
-    local raw = readall(is, buf_max)
-    is:close()
 
     local cursor = validate(raw)
 
@@ -255,7 +251,29 @@ local function preparse_png(is)
         end
         cursor = cursor + size_real + 4 -- crc
     end
+    if not data.tRNS then error "Images need to have transparency for now :( (no tRNS chunk)" end
     return data
+end
+
+---@param pack colormagic.file_pack
+local function add_hints(pack)
+    if pack.hints then return end
+    local pal_data = {}
+    local PLTE, tRNS = pack.PLTE, pack.tRNS
+    local PLTEc = PLTE.size / 3
+    for i = 1, PLTEc do
+        local access = PLTE.data_at + (i - 1) * 3
+        pal_data[i] = vec(byte(pack.raw, access, access + 2), 255)
+    end
+    if tRNS then for i = 1, tRNS.size do
+        pal_data[i].w = tRNS.data[i]
+    end end
+    ---@type {[string]: integer}
+    local hints = {}
+    for k, v in pairs(pal_data) do
+        hints[tostring(v)] = k
+    end
+    pack.hints = pal_data
 end
 
 -- big block of magic numbers for crc32 (263 inst via luac.nl)
@@ -308,8 +326,6 @@ local function crc32(bytes)
 end
 
 ---Base64 implementation supporting buffer sizes that are smaller than the input.
----
----**Not available in the Unsafe API.**
 ---@param bytes string
 ---@param max_buf integer
 ---@return string
@@ -325,10 +341,11 @@ local function toBase64Chunked(bytes, max_buf)
         buffer:close()
         return result
     end
-    local nearest_mult = floor(max_buf / 3) * 3
+    local chunk_count = floor(max_buf / 3)
+    local nearest_mult = chunk_count * 3
     local cursor = 1
     local chunks = {}
-    for i = 1, nearest_mult do
+    for i = 1, chunk_count do
         local buffer = data:createBuffer(nearest_mult)
         local read = buffer:writeByteArray(bytes:sub(cursor, cursor + nearest_mult - 1))
         cursor = cursor + nearest_mult
@@ -337,6 +354,61 @@ local function toBase64Chunked(bytes, max_buf)
         buffer:close()
     end
     return concat(chunks)
+end
+
+
+---Base64 implementation supporting buffer sizes that are smaller than the input.
+---@param b64 string
+---@param max_buf integer
+---@return string
+local function fromBase64Chunked(b64, max_buf)
+    max_buf = max_buf or 65536
+    local sizeof = #b64
+    local sizeof_out = floor(sizeof / 4) * 3
+    if sizeof_out <= max_buf then
+        local buffer = data:createBuffer(sizeof_out)
+        buffer:writeBase64(b64)
+        buffer:setPosition(0)
+        local result = buffer:readByteArray(sizeof_out)
+        buffer:close()
+        return result
+    end
+
+    local chunk_count = floor(max_buf / 3)
+    local nearest_mult = chunk_count * 3
+    local nearest_input = chunk_count * 4
+    local cursor = 1
+    local chunks = {}
+    for i = 1, chunk_count do
+        local buffer = data:createBuffer(nearest_mult)
+        local read = buffer:writeBase64(b64:sub(cursor, cursor + nearest_input - 1))
+        cursor = cursor + nearest_input
+        buffer:setPosition(0)
+        chunks[#chunks+1] = buffer:readByteArray(read)
+        buffer:close()
+    end
+    return concat(chunks)
+end
+
+---Converts source colors to pallete indexes.
+---@param pack colormagic.file_pack
+---@param color_replacements {[Vector4]: Vector4}
+local function automap(pack, color_replacements)
+    if not pack.hints then add_hints(pack) end
+    local hints = pack.hints
+    ---@type {[integer]: Vector4}
+    local mapping = {}
+
+    for src, dst in pairs(color_replacements) do
+        local key = tostring(src)
+        local index = hints[key]
+        if not index then
+            error("Color " .. key .. " not found in the palette")
+        end
+        mapping[index] = dst
+    end
+
+    return mapping
 end
 
 ---Does PNG magic rituals or something to convert colors.
@@ -399,9 +471,27 @@ end
 
 ---@class colormagic.module
 local exported_api = {}
-exported_api.load = preparse_png
-exported_api.pnginfo = pnginfo
+
+exported_api.load_raw = preparse_png
+function exported_api.load(is)
+    local max_buf = checkperms()
+    local raw = readall(is, max_buf)
+    is:close()
+    return preparse_png(raw)
+end
+
+exported_api.pnginfo_raw = pnginfo
+function exported_api.pnginfo(is)
+    local max_buf = checkperms()
+    local raw = readall(is, max_buf)
+    is:close()
+    return pnginfo(raw)
+end
+
+exported_api.automap = automap
+
 exported_api.toBase64Chunked = toBase64Chunked
+exported_api.fromBase64Chunked = fromBase64Chunked
 
 ---Perform the palette editing and create a new Texture.
 ---

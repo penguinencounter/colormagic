@@ -1,5 +1,5 @@
----@type colormagic_u.module
-local colormagic = require "./colormagic_unsafe"
+---@type colormagic.module
+local colormagic = require "./colormagic"
 
 _G.test_PNG = function()
     colormagic.pnginfo(resources:get("examplepng.png") --[[@as InputStream]])
