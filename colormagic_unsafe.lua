@@ -6,6 +6,7 @@
 local byte, char = string.byte, string.char
 local shl, bor = bit32.lshift, bit32.bor
 local concat = table.concat
+local floor = math.floor
 
 ---@param is InputStream
 ---@param buf_max integer
@@ -75,7 +76,7 @@ local pnginfo_chunk_actions = {}
 function pnginfo_chunk_actions.PLTE(buffer, length)
     ---@type {[integer]: Vector4}
     local mapping = {}
-    -- UNSAFE: no multiple of 3 check; should still work ignoring any partial colors
+    if length % 3 ~= 0 then error "Invalid PNG: palette is an invalid size (not a multiple of 3)" end
     for i = 1, length / 3 do
         local r, g, b = buffer:read(), buffer:read(), buffer:read()
         mapping[i] = vec(r, g, b, 255)
@@ -94,11 +95,9 @@ function pnginfo_chunk_actions.tRNS(buffer, length)
     return mapping
 end
 
----@param is InputStream
-local function pnginfo(is)
+---@param raw string
+local function pnginfo(raw)
     local buf_max = checkperms()
-    local raw = readall(is, buf_max)
-    is:close()
 
     local cursor = validate(raw)
 
@@ -177,19 +176,17 @@ end
 ---@field data integer[]
 
 ---@class colormagic_u.file_pack
----@field PLTE colormagic_u.locator
----@field tRNS colormagic_u.tRNS_locator
+---@field PLTE colormagic.locator
+---@field tRNS colormagic.tRNS_locator
 ---@field raw string
+---@field hints {[string]: integer}?
 
 ---Prepare a PNG for editing. You only need to do this once per source texture.
 ---Try and keep the loc_pack around to avoid wasting instructions.
----@param is InputStream
+---@param raw string
 ---@return colormagic_u.file_pack
-local function preparse_png(is)
+local function preparse_png(raw)
     local buf_max = checkperms()
-    local raw = readall(is, buf_max)
-    is:close()
-
     local cursor = validate(raw)
 
     ---@type colormagic_u.file_pack
@@ -239,7 +236,114 @@ local function preparse_png(is)
     return data
 end
 
+---@param pack colormagic.file_pack
+local function add_hints(pack)
+    if pack.hints then return end
+    local pal_data = {}
+    local PLTE, tRNS = pack.PLTE, pack.tRNS
+    local PLTEc = PLTE.size / 3
+    for i = 1, PLTEc do
+        local access = PLTE.data_at + (i - 1) * 3
+        local r, g, b = byte(pack.raw, access, access + 2)
+        pal_data[i] = vec(r, g, b, 255)
+    end
+    if tRNS then for i = 1, tRNS.size do
+        pal_data[i].w = tRNS.data[i]
+    end end
+    ---@type {[string]: integer}
+    local hints = {}
+    for k, v in pairs(pal_data) do
+        hints[tostring(v)] = k
+    end
+    pack.hints = hints
+end
+
 -- UNSAFE: NO CRC
+
+---Base64 implementation supporting buffer sizes that are smaller than the input.
+---@param bytes string
+---@param max_buf integer
+---@return string
+local function toBase64Chunked(bytes, max_buf)
+    -- in base64, 3 bytes = 4 characters exactly. so, if we don't have enough space, round down to a multiple of 3
+    local sizeof = #bytes
+    if sizeof <= max_buf then
+        -- do normal conversion
+        local buffer = data:createBuffer(sizeof)
+        buffer:writeByteArray(bytes)
+        buffer:setPosition(0)
+        local result = buffer:readBase64(sizeof)
+        buffer:close()
+        return result
+    end
+    local chunk_count = floor(max_buf / 3)
+    local nearest_mult = chunk_count * 3
+    local cursor = 1
+    local chunks = {}
+    for i = 1, chunk_count do
+        local buffer = data:createBuffer(nearest_mult)
+        local read = buffer:writeByteArray(bytes:sub(cursor, cursor + nearest_mult - 1))
+        cursor = cursor + nearest_mult
+        buffer:setPosition(0)
+        chunks[#chunks+1] = buffer:readBase64(read)
+        buffer:close()
+    end
+    return concat(chunks)
+end
+
+
+---Base64 implementation supporting buffer sizes that are smaller than the input.
+---@param b64 string
+---@param max_buf integer
+---@return string
+local function fromBase64Chunked(b64, max_buf)
+    max_buf = max_buf or 65536
+    local sizeof = #b64
+    local sizeof_out = floor(sizeof / 4) * 3
+    if sizeof_out <= max_buf then
+        local buffer = data:createBuffer(sizeof_out)
+        buffer:writeBase64(b64)
+        buffer:setPosition(0)
+        local result = buffer:readByteArray(sizeof_out)
+        buffer:close()
+        return result
+    end
+
+    local chunk_count = floor(max_buf / 3)
+    local nearest_mult = chunk_count * 3
+    local nearest_input = chunk_count * 4
+    local cursor = 1
+    local chunks = {}
+    for i = 1, chunk_count do
+        local buffer = data:createBuffer(nearest_mult)
+        local read = buffer:writeBase64(b64:sub(cursor, cursor + nearest_input - 1))
+        cursor = cursor + nearest_input
+        buffer:setPosition(0)
+        chunks[#chunks+1] = buffer:readByteArray(read)
+        buffer:close()
+    end
+    return concat(chunks)
+end
+
+---Converts source colors to pallete indexes.
+---@param pack colormagic.file_pack
+---@param color_replacements {[Vector4]: Vector4}
+local function automap(pack, color_replacements)
+    if not pack.hints then add_hints(pack) end
+    local hints = pack.hints
+    ---@type {[integer]: Vector4}
+    local mapping = {}
+
+    for src, dst in pairs(color_replacements) do
+        local key = tostring(src)
+        local index = hints[key]
+        if index then
+            mapping[index] = dst
+        end
+    end
+
+    return mapping
+end
 
 ---Does PNG magic rituals or something to convert colors.
 ---Uses RGBA 0-255 vectors, not 0-1 vectors.
@@ -292,8 +396,27 @@ end
 
 ---@class colormagic_u.module
 local exported_api = {}
-exported_api.load = preparse_png
-exported_api.pnginfo = pnginfo
+
+exported_api.load_raw = preparse_png
+function exported_api.load(is)
+    local max_buf = checkperms()
+    local raw = readall(is, max_buf)
+    is:close()
+    return preparse_png(raw)
+end
+
+exported_api.pnginfo_raw = pnginfo
+function exported_api.pnginfo(is)
+    local max_buf = checkperms()
+    local raw = readall(is, max_buf)
+    is:close()
+    return pnginfo(raw)
+end
+
+exported_api.automap = automap
+
+exported_api.toBase64Chunked = toBase64Chunked
+exported_api.fromBase64Chunked = fromBase64Chunked
 
 ---Perform the palette editing and create a new Texture.
 ---
@@ -309,5 +432,12 @@ function exported_api.transmute_direct(pack, replacements, new_name)
 end
 
 exported_api.transmute_raw = transmute
+
+function exported_api.vec_of(hex)
+    return vec(extr(hex, 16, 8), extr(hex, 8, 8), extr(hex, 0, 8), 0xff)
+end
+function exported_api.vec_of_a(hex)
+    return vec(extr(hex, 24, 8), extr(hex, 16, 8), extr(hex, 8, 8), extr(hex, 0, 8))
+end
 
 return exported_api

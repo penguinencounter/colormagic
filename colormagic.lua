@@ -1,7 +1,7 @@
 -- colormagic: super-fast pallete swaps for indexed PNGs
 
 local byte, char = string.byte, string.char
-local shl, shr, bor, xor, bnot, band = bit32.lshift, bit32.rshift, bit32.bor, bit32.bxor, bit32.bnot, bit32.band
+local shl, shr, bor, xor, bnot, band, extr = bit32.lshift, bit32.rshift, bit32.bor, bit32.bxor, bit32.bnot, bit32.band, bit32.extract
 local concat = table.concat
 local floor = math.floor
 
@@ -25,8 +25,6 @@ end
 --[[
 potential optimizations:
 - move away from shl/bor and instead multiply and add
-- make 'unsafe edition' without all of the error checking
-- it looks like Figura's PNG loader doesn't actually check the CRCs so that might be optional
 ]]
 
 local important_chunks = {
@@ -263,7 +261,8 @@ local function add_hints(pack)
     local PLTEc = PLTE.size / 3
     for i = 1, PLTEc do
         local access = PLTE.data_at + (i - 1) * 3
-        pal_data[i] = vec(byte(pack.raw, access, access + 2), 255)
+        local r, g, b = byte(pack.raw, access, access + 2)
+        pal_data[i] = vec(r, g, b, 255)
     end
     if tRNS then for i = 1, tRNS.size do
         pal_data[i].w = tRNS.data[i]
@@ -273,7 +272,7 @@ local function add_hints(pack)
     for k, v in pairs(pal_data) do
         hints[tostring(v)] = k
     end
-    pack.hints = pal_data
+    pack.hints = hints
 end
 
 -- big block of magic numbers for crc32 (263 inst via luac.nl)
@@ -402,10 +401,9 @@ local function automap(pack, color_replacements)
     for src, dst in pairs(color_replacements) do
         local key = tostring(src)
         local index = hints[key]
-        if not index then
-            error("Color " .. key .. " not found in the palette")
+        if index then
+            mapping[index] = dst
         end
-        mapping[index] = dst
     end
 
     return mapping
@@ -509,5 +507,12 @@ function exported_api.transmute_direct(pack, replacements, new_name)
 end
 
 exported_api.transmute_raw = transmute
+
+function exported_api.vec_of(hex)
+    return vec(extr(hex, 16, 8), extr(hex, 8, 8), extr(hex, 0, 8), 0xff)
+end
+function exported_api.vec_of_a(hex)
+    return vec(extr(hex, 24, 8), extr(hex, 16, 8), extr(hex, 8, 8), extr(hex, 0, 8))
+end
 
 return exported_api

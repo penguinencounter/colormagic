@@ -1,22 +1,14 @@
----@type colormagic.module
-local colormagic = require "./colormagic"
+---@type colormagic_u.module
+local colormagic = require "./colormagic_unsafe"
+
+---@type colormagic.extra.trim_data
+local trims = require "./trim_data"
+
+local hv = colormagic.vec_of
 
 _G.test_PNG = function()
     colormagic.pnginfo(resources:get("examplepng.png") --[[@as InputStream]])
 end
-
-local amethyst = {
-    [2] = vec(0x9a, 0x5c, 0xc6, 0xff),
-    [3] = vec(0x6c, 0x49, 0xaa, 0xff),
-    [4] = vec(0x52, 0x36, 0x87, 0xff),
-    [5] = vec(0x42, 0x27, 0x76, 0xff),
-}
-local gold = {
-    [2] = vec(0xec, 0xd9, 0x3f, 0xb0),
-    [3] = vec(0xde, 0xb1, 0x2d, 0xb0),
-    [4] = vec(0xb1, 0x67, 0x12, 0xb0),
-    [5] = vec(0xa0, 0x45, 0x0a, 0xb0)
-}
 
 _G.test_PNG2 = function()
     local before = avatar:getCurrentInstructions()
@@ -27,11 +19,11 @@ _G.test_PNG2 = function()
     local variants = {}
 
     before = avatar:getCurrentInstructions()
-    local amethyst_v = colormagic.transmute_direct(info, amethyst, "amethyst_version")
+    local amethyst_v = colormagic.transmute_direct(info, colormagic.automap(info, trims.amethyst), "amethyst_version")
     after = avatar:getCurrentInstructions()
     print(after - before, "instructions for amethyst")
     print("amethyst", amethyst_v)
-    local gold_v = colormagic.transmute_direct(info, gold, "gold_version")
+    local gold_v = colormagic.transmute_direct(info, colormagic.automap(info, trims.gold), "gold_version")
     print("gold", gold_v)
 
     do
