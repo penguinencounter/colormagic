@@ -4,7 +4,7 @@
 -- the non-unsafe version when developing first, please.
 
 local byte, char = string.byte, string.char
-local shl, bor = bit32.lshift, bit32.bor
+local shl, bor, extr = bit32.lshift, bit32.bor, bit32.extract
 local concat = table.concat
 local floor = math.floor
 
