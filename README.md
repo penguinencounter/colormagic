@@ -53,7 +53,7 @@ Once you're done developing your avatar's features that need the library, it sho
 Of course, using the Unsafe API is completely optional. If you don't want to use it, you don't have to.
 
 > [!WARNING]  
-> **Please avoid asking for support if you use the Unsafe API while developing your avatar.** (If the two APIs don't have parity for some reason, please report that as a bug.)
+> **Please don't use the Unsafe API when asking for support.** (If the two APIs don't have parity for some reason, or if swapping them out doesn't work, please report that as a bug.)
 
 ## 3. Installation
 Drop the two lua files somewhere in your avatar.
