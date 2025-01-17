@@ -24,9 +24,11 @@ For this to work, the image needs to use **indexed color**.
 
 Indexed/Quantized/Paletted Color is a color mode for PNGs where each color references a fixed palette. I personally used GIMP to convert images to indexed color.
 
-> Tip: Many vanilla textures already use indexed color! You can try using those by downloading them directly from your game files, or https://github.com/misode/mcmeta/tree/assets. For example, the armor trims already have indexed color (very convenient!)
+> [!TIP]  
+> Many vanilla textures already use indexed color! You can try using those by downloading them directly from your game files, or https://github.com/misode/mcmeta/tree/assets. For example, the armor trims already have indexed color (very convenient!)
 
-> Bonus Tip: If you've compressed your PNGs using an external tool, there's a chance that you already have Indexed Color enabled - try using the code from section 4.2 with your image to see if it is.
+> [!TIP]  
+> Bonus: If you've compressed your PNGs using an external tool, there's a chance that you already have Indexed Color enabled - try using the code from section 4.2 with your image to see if it is.
 
 You'll need to make sure that you're using a PNG with Indexed Color for this library to work. In GIMP, you can convert an image to Indexed Color by going to `Image > Mode > Indexed...`. This will bring up a dialog asking how to convert the image's colors - if you have more than 256 colors (ouch...) this might change some colors in your image (!).
 Otherwise, the defaults work well.
@@ -40,7 +42,8 @@ The package comes with two library files:
 ### 2.1. `colormagic.lua`
 This is the main "development" library file. You should work with this while developing your avatar. It is quite a bit cheaper than any other methods of palette swapping, and produces specification-compliant PNG data. **It will also check your inputs to make sure they make sense.**
 
-> note: `toBase64Chunked` is only available in this variant. It was intended for debugging and viewing the output PNGs in external applications. As you'll see, this isn't very useful for the other file.
+> [!NOTE]  
+> `toBase64Chunked` is only available in this variant. It was intended for debugging and viewing the output PNGs in external applications. As you'll see, this isn't very useful for the other file.
 
 ### 2.2. `colormagic_unsafe.lua`
 This version uses even *more* hacky techniques to trim down the instruction count. It doesn't produce spec-compliant PNG data because it completely ignores the checksums in the file (becuase Minecraft ignores them too, so it's fine.) **This version contains little to no error checking.** (There's still checks that the maximum buffer size is sufficent, etc - but passing an invalid PNG will cause problems!) There's also no `toBase64Chunked`.
@@ -49,7 +52,8 @@ Once you're done developing your avatar's features that need the library, it sho
 
 Of course, using the Unsafe API is completely optional. If you don't want to use it, you don't have to.
 
-**Please avoid asking for support if you use the Unsafe API while devloping your avatar.** (If the two APIs don't have parity for some reason, please report that as a bug.)
+> [!WARNING]  
+> **Please avoid asking for support if you use the Unsafe API while devloping your avatar.** (If the two APIs don't have parity for some reason, please report that as a bug.)
 
 ## 3. Installation
 Drop the two lua files somewhere in your avatar.
@@ -63,6 +67,7 @@ local colormagic = require "colormagic"
 
 **Don't link the target texture to a Blockbench model!** You should use the Resource API instead. Because nobody ever uses the Resource API, here's a tutorial:
 
+> [!WARNING]  
 > If you link the texture to a Blockbench model, it'll be bundled twice, which will cost you avatar space.
 
 ### 4.1. The Resource API
