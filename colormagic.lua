@@ -358,7 +358,7 @@ end
 
 ---Base64 implementation supporting buffer sizes that are smaller than the input.
 ---@param b64 string
----@param max_buf integer
+---@param max_buf integer?
 ---@return string
 local function fromBase64Chunked(b64, max_buf)
     max_buf = max_buf or 65536
