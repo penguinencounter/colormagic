@@ -1,4 +1,4 @@
----@type colormagic_u.module
+---@type colormagic.module
 local colormagic = require "./colormagic_unsafe"
 
 ---@type colormagic.extra.trim_data
@@ -12,7 +12,8 @@ end
 
 _G.test_PNG2 = function()
     local before = avatar:getCurrentInstructions()
-    local info = colormagic.load(resources:get("examplepng.png") --[[@as InputStream]])
+    -- local info = colormagic.load(resources:get("examplepng.png") --[[@as InputStream]])
+    local info = colormagic.load(textures.examplepng)
     local after = avatar:getCurrentInstructions()
     print(after - before, "load instructions")
 
