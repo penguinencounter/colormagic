@@ -1,4 +1,4 @@
-# API documentation for v1.1.0
+# API documentation for v1.2.0
 
 ## Permission requirements
 * at least one free buffer
@@ -13,10 +13,28 @@ Load raw PNG data as a string and return a file pack. The file pack can be re-us
 
 ***
 
-### `load(is: InputStream)`
+### `load_avatar_tex(name: string)`
 *returns `colormagic.file_pack`*
 
-Load raw PNG data from a resource (or other non-async InputStream) and return a file pack. The file pack can be re-used to create multiple variants of the same texture. This function is implemented with `load_raw`.
+Load an avatar texture by name from the avatar's NBT. By default, displays a large warning about how inefficient it is and its other drawbacks &mdash; this can be suppressed by following the instructions in the in-game warning.
+
+> [!WARNING]  
+> This function is inefficient and should be avoided if the texture isn't being used in a Blockbench model. If you have free space, consider using a Resource or string (possibly base64) instead anyway.
+>
+> * +7 instructions per byte due to Figura NBT limitations
+> * Doesn't support any changes made to the texture by scripts, despite `load` accepting a Texture argument. Always uses the PNG as packaged by Figura when compiling the avatar.
+
+***
+
+### `load(input: SupportedInput)`
+*returns `colormagic.file_pack`*
+
+`SupportedInput: string | InputStream | Texture`
+
+Load raw PNG data from the input and return a file pack. The file pack can be re-used to create multiple variants of the same texture. Depending on the input type, the function will attempt to load the data in different ways:
+* `string`: tries to load as raw PNG data, as if you had called `load_raw` instead
+* `InputStream`: tries to read the stream in its entirety and load it as raw PNG data
+* `Texture`: reads the name of the texture and inteprets it as an avatar texture, and then calls `load_avatar_tex` with the name
 
 ***
 
