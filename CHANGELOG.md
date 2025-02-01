@@ -1,6 +1,6 @@
 # `colormagic` changelog
 
-## v1.2.1 - `load` from non-resource textures
+## v1.2.0 - `load` from non-resource textures
 * feat: `colormagic.load_avatar_tex` for imporing a texture by name (like the `textures` table, not `resources`), but only those bundled into the avatar data. Using this functionality *will work*, but will throw up a huge warning. **Please read the warning.**
 * feat: `colormagic.load` now accepts a `string`, `InputStream`, or `Texture` and does an appropriate thing with it:
     * `string`: tries to load as raw PNG data (not base64!)
