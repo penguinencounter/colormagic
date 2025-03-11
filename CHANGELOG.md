@@ -1,5 +1,13 @@
 # `colormagic` changelog
 
+## v1.2.1 - bug fixes and size improvements
+* feat: `colormagic_min.lua`. smaller footprint-ish, smaller featureset. based on `unsafe`.
+    * `pnginfo` just prints a message about being unavailable
+    * `toBase64Chunked` and `fromBase64Chunked` throw errors
+* feat?: trimmed a bunch of stuff you don't need in production from `colormagic_unsafe`.
+* fix: the AST compressor doesn't understand the nuances of CRLFs (also `\x` escape codes)
+* docs: documentation as usual
+
 ## v1.2.0 - `load` from non-resource textures
 * feat: `colormagic.load_avatar_tex` for imporing a texture by name (like the `textures` table, not `resources`), but only those bundled into the avatar data. Using this functionality *will work*, but will throw up a huge warning. **Please read the warning.**
 * feat: `colormagic.load` now accepts a `string`, `InputStream`, or `Texture` and does an appropriate thing with it:

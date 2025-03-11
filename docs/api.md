@@ -41,12 +41,16 @@ Load raw PNG data from the input and return a file pack. The file pack can be re
 ### `pnginfo_raw(raw: string)`
 *informational*
 
+> unavailable in minimal version (prints warning)
+
 Writes palette data from the provided PNG image out to chat, if the image is in indexed mode. Errors on non-indexed images.
 
 ***
 
 ### `pnginfo(is: InputStream)`
 *informational*
+
+> unavailable in minimal version (prints warning)
 
 Writes palette data from the provided non-async InputStream containing a PNG image out to chat, if the image is in indexed mode. Errors on non-indexed images. This function is implemented with `pnginfo_raw`.
 
@@ -63,12 +67,16 @@ Perform **automatic mapping** of colors in the `color_replacements` table to the
 ### `toBase64Chunked(bytes: string, max_buf: integer)`
 *returns `string`*
 
+> unavailable in minimal version (throws error)
+
 Converts the provided bytes string into its base64 representation, potentially in multiple chunks if the provided data in `bytes` is larger than `max_buf`.
 
 ***
 
 ### `fromBase64Chunked(b64: string, max_buf: integer?)`
 *returns `string`*
+
+> unavailable in minimal version (throws error)
 
 Converts the provided base64 string into its binary representation, potentially in multiple chunks if the provided data in `b64` would decode to a size larger than `max_buf`. If `max_buf` is not provided, 64KiB will be used.
 
