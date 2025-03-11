@@ -1,4 +1,4 @@
-# API documentation for v1.2.0
+# API documentation for v1.2.1
 
 ## Permission requirements
 * at least one free buffer
