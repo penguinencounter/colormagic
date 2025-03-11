@@ -58,11 +58,14 @@ local function checkperms()
     return buf_max
 end
 
+-- ast compressor sucks :(
+local png_header = string.char(0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a)
+
 ---@param raw string
 ---@return integer cursor
 local function validate(raw)
     -- Is this a PNG at all?
-    assert(raw:sub(1, 8) == "\x89PNG\x0d\x0a\x1a\x0a", "Not a PNG (wrong header)")
+    assert(raw:sub(1, 8) == png_header, "Not a PNG (wrong header)")
 
     -- Read the IHDR chunk.
     local cursor = 9
