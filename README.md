@@ -37,13 +37,10 @@ Otherwise, the defaults work well.
 The library rewrites the palette data from the image, and then loads it into the game at runtime. This involves finding the palette data in the PNG file and splicing together something that works.
 
 ## 2. What's In The Package
-The package comes with two library files:
+The package comes with three library files:
 
 ### 2.1. `colormagic.lua`
 This is the main "development" library file. You should work with this while developing your avatar. It is quite a bit cheaper than any other methods of palette swapping, and produces specification-compliant PNG data. **It will also check your inputs to make sure they make sense.**
-
-> [!NOTE]  
-> `toBase64Chunked` is only available in this variant. It was intended for debugging and viewing the output PNGs in external applications. As you'll see, this isn't very useful for the other file.
 
 ### 2.2. `colormagic_unsafe.lua`
 This version uses even *more* hacky techniques to trim down the instruction count. It doesn't produce spec-compliant PNG data because it completely ignores the checksums in the file (becuase Minecraft ignores them too, so it's fine.) **This version contains little to no error checking.** (There's still checks that the maximum buffer size is sufficent, etc - but passing an invalid PNG will cause problems!) There's also no `toBase64Chunked`.
@@ -52,11 +49,13 @@ Once you're done developing your avatar's features that need the library, it sho
 
 Of course, using the Unsafe API is completely optional. If you don't want to use it, you don't have to.
 
-> [!WARNING]  
-> **Please don't use the Unsafe API when asking for support.** (If the two APIs don't have parity for some reason, or if swapping them out doesn't work, please report that as a bug.)
+> If the two main library files don't have parity for some reason, or if swapping them out doesn't work, please report that as a bug.
+
+### 2.3. `colormagic_min.lua`
+This is `colormagic_unsafe` compressed for size. Shorter, less descriptive error messages and less features. Check the API documentation for differences. Notably, `fromBase64Chunked`/`toBase64Chunked` throw errors, and `pnginfo` doesn't do the right thing.
 
 ## 3. Installation
-Drop the two lua files somewhere in your avatar.
+Drop the lua files somewhere in your avatar.
 
 Use the following to use the library in your script:
 ```lua
@@ -65,7 +64,7 @@ local colormagic = require "colormagic"
 
 ## 4. Usage
 
-**Don't link the target texture to a Blockbench model!** You should use the Resource API instead. Because nobody ever uses the Resource API, here's a tutorial:
+**Don't link the target texture to a Blockbench model - this will double the size cost from the texture.** You should use the Resource API instead. Because nobody ever uses the Resource API, here's a tutorial:
 
 > [!WARNING]  
 > If you link the texture to a Blockbench model, it'll be bundled twice, which will cost you avatar space.
@@ -87,13 +86,13 @@ To access these files with Lua, use the `resources:get(name)` function. It retur
 local trim = resources:get("trim.png")
 ```
 
-`colormagic` takes `InputStream` objects as input. You can pass the `InputStream` directly to the library. (Passing a `string` containing the raw data or a `Texture` is not supported.)
+`colormagic` takes `InputStream` objects as input. You can pass the `InputStream` directly to the library. (Passing a `string` containing the raw data or a `Texture` is supported as well, but using `Texture`s is discouraged and may not do what you expect.)
 
-### 4.2. Image Analysis
+### 4.2. Manual Image Analysis
 
-To swap colors, you need to know what slot each color is in. There is a handy tool in both `colormagic` and `colormagic_unsafe` named `colormagic.pnginfo` that can show you the colors in the palette.
+To swap colors, you need to know what slot each color is in. colormagic can do this for you (see section 4.5), but if you want to save more instructions, you can manually specify color slots. There is a handy tool in both `colormagic` and `colormagic_unsafe` (but not `colormagic_min`) named `colormagic.pnginfo` that can show you the colors in the palette.
 
-Simply call `pnginfo(input_stream)` to print a list of colors and indexes:
+Simply call `pnginfo(input)` to print a list of colors and indexes:
 
 ```lua
 -- prints "PNG Palette Info" table
@@ -104,7 +103,7 @@ colormagic.pnginfo(resources:get("trim.png"))
 
 `colormagic` loads images in two phases: `load` and `transmute`.
 
-To load an image, use `colormagic.load(input_stream)`:
+To load an image, use `colormagic.load(input)`:
 
 ```lua
 local img_pack = colormagic.load(resources:get("trim.png"))
@@ -114,7 +113,7 @@ This returns a "colormagic file pack" that contains the entire texture data, as 
 
 You only need to load an image once - you can re-use the pack to generate families of images (e.g. every material for an armor trim texture).
 
-### 4.4 Replacements
+### 4.4 Replacements (manual)
 To perform a palette swap, we need to know what colors to switch to! The `replacements` table is a mapping of palette slots (see section 4.2) to new colors (in the form of Vector4s).
 
 **These Vector4s use 0 to 255 as the color range, not 0 to 1!** Don't get it mixed up! Providing floating point values may error or completely break the image. Each Vector4 is in the order of R, G, B, A.
@@ -130,7 +129,22 @@ local amethyst_repl = {
 }
 ```
 
-### 4.5 Palette Swapping
+### 4.5 Replacements (automatic)
+`colormagic` can automatically determine color slots from a set of *source colors*. This provides color-to-color replacement functionality, like vanilla's armor trim permuations. To turn this into a slot-replacement map, use `colormagic.automap(img_pack, replacements)`:
+
+```lua
+-- we have color-to-color replacement
+local amethyst_map = {
+    [vec(0xc0, 0xc0, 0xc0, 0xff)] = vec(0x9a, 0x5c, 0xc6, 0xff),
+    [vec(0xa0, 0xa0, 0xa0, 0xff)] = vec(0x6c, 0x49, 0xaa, 0xff),
+    [vec(0x80, 0x80, 0x80, 0xff)] = vec(0x52, 0x36, 0x87, 0xff),
+    [vec(0x60, 0x60, 0x60, 0xff)] = vec(0x42, 0x27, 0x76, 0xff),
+}
+-- convert to slot-to-color replacement
+local amethyst_repl = colormagic.automap(img_pack, amethyst_map)
+```
+
+### 4.6 Palette Swapping
 To perform the palette swap, use `colormagic.transmute_direct(img_pack, replacements, new_texture_name)`. This will return a new `Texture` with the colors replaced.
 
 ```lua
